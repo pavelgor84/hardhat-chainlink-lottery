@@ -19,7 +19,7 @@ contract Raffle {
     }
 
     function enterRaffle() public payable {
-        //require(msg.value > i_entranceFee, "Not enough ETH") - gas unefficient
+        //require(msg.value > i_entranceFee, "Not enough ETH") - gas unoptimised
         if (msg.value < i_entranceFee) {
             revert Raffle_notEnoughFeeToEnter();
         }
