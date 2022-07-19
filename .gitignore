@@ -1,3 +1,5 @@
 artifacts/
 node_modules/
+cache/
 .envnode_modules/
+.env
