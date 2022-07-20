@@ -8,8 +8,15 @@ import "@chainlink/contracts/src/v0.8/interfaces/KeeperCompatibleInterface.sol";
 
 error Raffle__notEnoughFeeToEnter();
 error Raffle__TransactionFail();
+error Raffle__NotOpen();
 
-contract Raffle is VRFConsumerBaseV2 {
+contract Raffle is VRFConsumerBaseV2, KeeperCompatibleInterface {
+    //Types
+    enum RaffleState {
+        OPEN,
+        CALCULATING
+    } //uint256 0= OPEN, 1=CALCULATING
+
     //State vars
     uint256 private immutable i_entranceFee;
     address payable[] private s_players;
@@ -22,6 +29,9 @@ contract Raffle is VRFConsumerBaseV2 {
 
     //Raffle vars
     address private s_recenWinner;
+    RaffleState private s_raffleState;
+    uint256 private s_lastTimeStamp;
+    uint256 private immutable i_interval;
 
     // Events
     event RaffleEnter(address indexed player);
@@ -33,17 +43,24 @@ contract Raffle is VRFConsumerBaseV2 {
         uint256 entranceFee,
         bytes32 gasLane,
         uint64 subscriptionId,
-        uint32 callbackGasLimit
+        uint32 callbackGasLimit,
+        uint256 interval
     ) VRFConsumerBaseV2(vrfCoordinatorV2) {
         i_entranceFee = entranceFee;
         i_vrfCoordinator = VRFCoordinatorV2Interface(vrfCoordinatorV2);
         i_gasLane = gasLane;
         i_subscriptionId = subscriptionId;
         i_callbackGasLimit = callbackGasLimit;
+        s_raffleState = RaffleState.OPEN;
+        s_lastTimeStamp = block.timestamp;
+        i_interval = interval;
     }
 
     function enterRaffle() public payable {
         //require(msg.value > i_entranceFee, "Not enough ETH") - gas unoptimised
+        if (s_raffleState != RaffleState.OPEN) {
+            revert Raffle__NotOpen();
+        }
         if (msg.value < i_entranceFee) {
             revert Raffle__notEnoughFeeToEnter();
         }
@@ -51,7 +68,32 @@ contract Raffle is VRFConsumerBaseV2 {
         emit RaffleEnter(msg.sender);
     }
 
+    /* In order to return True one must meet the following reqs:
+    1. Time interval should be passed
+    2. Must be at least one player with ETH deposited
+    3. LINK tokens should be on the balance
+    4. The lottery must be in open state
+    
+    */
+    function checkUpkeep(
+        bytes calldata /* checkData */
+    )
+        external
+        override
+        returns (
+            bool upkeepNeeded,
+            bytes memory /* performData */
+        )
+    {
+        bool isOpen = (s_raffleState == RaffleState.OPEN);
+        bool timePAssed = ((s_lastTimeStamp - block.timestamp) > i_interval);
+        bool isPlayers = (s_players.length > 0);
+        bool isETH = (address(this).balance > 0);
+        upkeepNeeded = (isOpen && timePAssed && isPlayers && isETH);
+    }
+
     function requestRandomWinner() external {
+        s_raffleState = RaffleState.CALCULATING;
         uint256 requestId = i_vrfCoordinator.requestRandomWords(
             i_gasLane,
             i_subscriptionId,
@@ -69,6 +111,8 @@ contract Raffle is VRFConsumerBaseV2 {
         uint256 index = randomWords[0] % s_players.length;
         address payable recentWinner = s_players[index];
         s_recenWinner = recentWinner;
+        s_players = new address payable[](0);
+        s_raffleState = RaffleState.OPEN;
         (bool success, ) = s_recenWinner.call{value: address(this).balance}("");
         if (!success) {
             revert Raffle__TransactionFail();
