@@ -2,20 +2,33 @@
 
 pragma solidity ^0.8.7;
 
-import "@chainlink/contracts/src/v0.8/VRFConsumerbaseV2.sol";
+import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
+import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 
 error Raffle_notEnoughFeeToEnter();
 
-contract Raffle {
+contract Raffle is VRFConsumerBaseV2 {
     //State vars
     uint256 private immutable i_entranceFee;
     address payable[] private s_players;
+    VRFCoordinatorV2Interface private immutable i_vrfCoordinator;
+    bytes32 private immutable i_gasLane;
+    uint64 private immutable i_subscriptionId;
+    uint16 private constant REQUEST_CONFIRMATIONS = 3;
 
     // Events
-    event raffleEnter(address player);
+    event RaffleEnter(address indexed player);
 
-    constructor(uint256 entranceFee) {
+    constructor(
+        address vrfCoordinatorV2,
+        uint256 entranceFee,
+        bytes32 gasLane,
+        uint64 subscriptionId
+    ) VRFConsumerBaseV2(vrfCoordinatorV2) {
         i_entranceFee = entranceFee;
+        i_vrfCoordinator = VRFCoordinatorV2Interface(vrfCoordinatorV2);
+        i_gasLane = gasLane;
+        i_subscriptionId = subscriptionId;
     }
 
     function enterRaffle() public payable {
@@ -24,10 +37,23 @@ contract Raffle {
             revert Raffle_notEnoughFeeToEnter();
         }
         s_players.push(payable(msg.sender));
-        emit raffleEnter(msg.sender);
+        emit RaffleEnter(msg.sender);
     }
 
-    function pickRandomWinner() external {}
+    function requestRandomWinner() external {
+        i_vrfCoordinator.requestRandomWords(
+            i_gasLane,
+            i_subscriptionId,
+            REQUEST_CONFIRMATIONS,
+            callbackGasLimit,
+            numWords
+        );
+    }
+
+    function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords)
+        internal
+        override
+    {}
 
     //View functions
     function getPlayer(uint256 index) public view returns (address) {
