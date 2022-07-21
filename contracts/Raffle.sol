@@ -9,6 +9,7 @@ import "@chainlink/contracts/src/v0.8/interfaces/KeeperCompatibleInterface.sol";
 error Raffle__notEnoughFeeToEnter();
 error Raffle__TransactionFail();
 error Raffle__NotOpen();
+error Raffle__UpkeepNotNeeded(uint256 players, uint256 balance, uint256 state);
 
 contract Raffle is VRFConsumerBaseV2, KeeperCompatibleInterface {
     //Types
@@ -76,9 +77,9 @@ contract Raffle is VRFConsumerBaseV2, KeeperCompatibleInterface {
     
     */
     function checkUpkeep(
-        bytes calldata /* checkData */
+        bytes memory /* checkData */
     )
-        external
+        public
         override
         returns (
             bool upkeepNeeded,
@@ -92,7 +93,17 @@ contract Raffle is VRFConsumerBaseV2, KeeperCompatibleInterface {
         upkeepNeeded = (isOpen && timePAssed && isPlayers && isETH);
     }
 
-    function requestRandomWinner() external {
+    function performUpkeep(
+        bytes calldata /*perform data*/
+    ) external override {
+        (bool upkeepNeeded, ) = checkUpkeep("");
+        if (!upkeepNeeded) {
+            revert Raffle__UpkeepNotNeeded(
+                s_players.length,
+                address(this).balance,
+                uint256(s_raffleState)
+            );
+        }
         s_raffleState = RaffleState.CALCULATING;
         uint256 requestId = i_vrfCoordinator.requestRandomWords(
             i_gasLane,
@@ -112,6 +123,7 @@ contract Raffle is VRFConsumerBaseV2, KeeperCompatibleInterface {
         address payable recentWinner = s_players[index];
         s_recenWinner = recentWinner;
         s_players = new address payable[](0);
+        s_lastTimeStamp = block.timestamp;
         s_raffleState = RaffleState.OPEN;
         (bool success, ) = s_recenWinner.call{value: address(this).balance}("");
         if (!success) {
@@ -131,5 +143,13 @@ contract Raffle is VRFConsumerBaseV2, KeeperCompatibleInterface {
 
     function getRecentWiner() public view returns (address) {
         return s_recenWinner;
+    }
+
+    function getState() public view returns (RaffleState) {
+        return s_raffleState;
+    }
+
+    function getNumberOfPlayers() public view returns (uint256) {
+        return s_players.length;
     }
 }
