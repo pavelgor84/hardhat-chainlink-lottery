@@ -1,3 +1,5 @@
+const { network } = require("hardhat")
+
 
 module.exports = async function ({ getNamedAccounts, deployments }) {
     const { deploy, log } = deployments
@@ -6,7 +8,7 @@ module.exports = async function ({ getNamedAccounts, deployments }) {
     const raffle = deploy("Raffle", {
         from: deployer,
         args: [],
-        waitConfirmations: 6
+        waitConfirmations: network.config.blockConfirmations || 1
     })
 
 }
