@@ -35,7 +35,7 @@ module.exports = {
     },
     player: {
       default: 1
-    }
+    },
   },
   gasReporter: {
     enabled: false,
