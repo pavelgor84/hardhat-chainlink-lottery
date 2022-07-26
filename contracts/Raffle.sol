@@ -87,7 +87,7 @@ contract Raffle is VRFConsumerBaseV2, KeeperCompatibleInterface {
         )
     {
         bool isOpen = (s_raffleState == RaffleState.OPEN);
-        bool timePAssed = ((s_lastTimeStamp - block.timestamp) > i_interval);
+        bool timePAssed = ((block.timestamp - s_lastTimeStamp) > i_interval);
         bool isPlayers = (s_players.length > 0);
         bool isETH = (address(this).balance > 0);
         upkeepNeeded = (isOpen && timePAssed && isPlayers && isETH);
