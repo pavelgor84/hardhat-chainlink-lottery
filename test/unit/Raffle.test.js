@@ -50,4 +50,24 @@ const { networkConfig } = require("../../helper-hh-config")
         })
     })
 
+    describe("checkUpKeep", function () {
+        it("should be failed without ETH", async () => {
+            await network.provider.send("evm_increaseTime", [interval.toNumber() + 1])
+            await network.provider.send("evm_mine", [])
+            const { upkeepNeeded } = await raffle.callStatic.checkUpkeep([])
+            assert(!upkeepNeeded)
+        })
+        it("should fail to checkUpKeep during CALCULATING", async () => {
+            await raffle.enterRaffle({ value: entranceFee })
+            await network.provider.send("evm_increaseTime", [interval.toNumber() + 1])
+            await network.provider.send("evm_mine", [])
+            await raffle.performUpkeep([])
+            const status = await raffle.getState()
+            assert.equal(status.toString(), 1)
+            const { upkeepNeeded } = await raffle.callStatic.checkUpkeep([])
+            assert.equal(upkeepNeeded, false)
+
+        })
+    })
+
 })
