@@ -1,5 +1,6 @@
 artifacts/
 node_modules/
 cache/
+coverage/
 .envnode_modules/
 .env
