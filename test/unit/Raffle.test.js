@@ -157,9 +157,6 @@ const { networkConfig } = require("../../helper-hh-config")
                 await vrfCoordinatorV2.fulfillRandomWords(receipt.events[1].args.requestId, raffle.address)
                 console.log("fulfillRandomnes executed")
             })
-
-
         })
     })
-
 })
