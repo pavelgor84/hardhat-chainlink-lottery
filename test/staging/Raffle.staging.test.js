@@ -13,12 +13,12 @@ developementNetworks.includes(network.name) ? describe.skip : describe("Unit tes
         entranceFee = await raffle.getEntranceFee()
     })
 
-    desribe("Raffle staging test", function () {
+    describe("Raffle staging test", function () {
         it("should enter raffle and use vrfCoordinator and keeper for a random number and winner", async () => {
             const accounts = await ethers.getSigners()
 
             await new Promise(async (resolve, reject) => {
-                raffle.once("WinnerPicked", function () {
+                raffle.once("WinnerPicked", async () => {
                     try {
                         console.log("The winner is picked!")
                         const theWinner = await raffle.getRecentWiner()
